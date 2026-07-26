@@ -1,272 +1,257 @@
-# CoderPlant 码源：官网入口、API 接入与使用指南
+# LLM API Doctor
 
-CoderPlant（码源）提供面向 AI 编程与通用模型调用的 API 中转服务，可通过 OpenAI、Anthropic 和 Gemini 兼容协议接入常见客户端与开发工具。
+> 一条命令诊断大模型 API：检查地址、认证、响应格式、SSE 流式输出与首 Token 延迟。
 
-本文根据 CoderPlant 官方文档整理，包含官网入口、账户开通、API 地址、工具配置、套餐信息和常见问题。模型、价格与可用线路可能调整，请以控制台实时显示为准。
+[![npm](https://img.shields.io/npm/v/llm-api-doctor)](https://www.npmjs.com/package/llm-api-doctor)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
+[![CoderPlant](https://img.shields.io/badge/LLM_API-CoderPlant-07865c)](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
 
-> 更新时间：2026-07-22  
-> 文档版本：1.0.0.1
+LLM API Doctor 是一个开源、轻量的大模型 API 测试工具，提供 CLI 和 Windows 桌面版。它会发送一条低 Token 的真实请求，帮助你快速定位 `Base URL`、API Key、模型权限、响应结构、流式协议和网关延迟问题。
 
----
+支持 **OpenAI Chat Completions、OpenAI Responses、Anthropic Claude、Google Gemini、Azure OpenAI**，以及 DeepSeek、OpenRouter、Groq、Mistral、通义千问、Moonshot、SiliconFlow、vLLM、LM Studio、Ollama 等提供的 OpenAI 兼容接口。
 
-## 官方入口
+如果这个项目帮你节省了排查时间，欢迎点一个 **Star**。这会帮助更多开发者找到它。
 
-- 官网：[https://coderplant.com/](https://coderplant.com/)
-- 使用文档：[https://coderplant.com/docs/](https://coderplant.com/docs/)
-- 注册账户：[https://coderplant.com/register](https://coderplant.com/register)
-- 用户控制台：[https://coderplant.com/dashboard](https://coderplant.com/dashboard)
-- 兑换额度：[https://coderplant.com/redeem](https://coderplant.com/redeem)
-- 购买兑换码：[官方店铺](https://catfk.com/shop/1PSAE01M)
+**English:** A local CLI and Windows desktop app for testing OpenAI, Anthropic Claude, Google Gemini, Azure OpenAI, and OpenAI-compatible LLM APIs. Diagnose authentication, response schemas, SSE streaming, TTFT, and gateway latency without exposing API keys in reports.
 
----
+## 为什么需要它
 
-## 服务特点
+调用大模型失败时，常见错误往往非常相似：
 
-- 兼容 OpenAI API 协议；
-- 兼容 Anthropic API 协议；
-- 兼容 Gemini `generateContent` 协议；
-- 可接入 Codex CLI、Claude Code 及其他兼容客户端；
-- 支持按用途创建独立 API Key；
-- API Key 可设置有效期、额度和模型范围；
-- 支持按量使用和包月套餐。
+- `401`：API Key 错误，还是认证 Header 不兼容？
+- `404`：Base URL 错误，还是重复拼接了 `/v1`？
+- HTTP `200`：为什么 SDK 仍然无法读取返回内容？
+- 普通请求成功：为什么 `stream=true` 会中断或缺少结束事件？
+- 中转接口可用：首 Token 到底慢在网关还是模型上游？
 
-模型范围会随套餐和线路变化，不建议在程序中长期写死模型列表。使用前请从控制台复制当前可用的模型 ID。
+LLM API Doctor 将一次调用拆成独立检查项，并给出可读的错误说明和修复建议。它使用原生 HTTP 请求，而不是依赖某一家 SDK，因此测试的是应用实际调用的协议层。
 
----
+## 功能亮点
 
-## 快速开始
+- 五种提供商协议，模型 ID 自由输入，不维护模型白名单
+- 自动规范化 API 地址，识别常见 `/v1` 和完整 Endpoint 写法
+- 检查 HTTP 状态、Content-Type、JSON Schema 和模型文本
+- 可选 SSE 流式测试，记录响应头延迟、TTFT 和总耗时
+- 终端、JSON、Markdown 三种报告，适合本地排查和 CI
+- Windows 桌面版提供中英文结果、运行取消和报告导出
+- API Key 不写入报告，也不保存在桌面端设置中
+- 所有自动化测试使用本地 Mock Server，不消耗真实模型额度
 
-1. 在[注册页面](https://coderplant.com/register)创建账户并登录。
-2. 从[官方店铺](https://catfk.com/shop/1PSAE01M)购买兑换码。
-3. 前往[兑换页面](https://coderplant.com/redeem)，将兑换码兑换到账户。
-4. 在控制台创建 API Key，并按需要设置有效期、额度或模型权限。
-5. 从控制台复制一个当前可用的模型 ID，完成首次请求测试。
+## 支持的协议
 
-> 兑换成功后，额度会进入当时登录的账户。提交兑换码前请确认账号无误。
+模型名称没有白名单限制。请选择目标接口实际实现的协议，再填写真实模型 ID；Azure OpenAI 中填写 Deployment Name。
 
----
+| 提供商协议 | `--provider` | 默认 Base URL | 默认 Key 环境变量 |
+| --- | --- | --- | --- |
+| OpenAI-compatible Chat Completions | `openai-compatible` | 需要填写 | `OPENAI_API_KEY` |
+| OpenAI Responses API | `openai-responses` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| Anthropic Messages | `anthropic` | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| Google Gemini | `gemini` | `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| Azure OpenAI Chat Completions | `azure-openai` | 需要填写 | `AZURE_OPENAI_API_KEY` |
 
-## API 地址与鉴权
+> OpenAI-compatible 表示接口遵循 Chat Completions 协议，并不代表它只能测试 OpenAI 模型。大多数大模型中转站和本地推理服务都可以通过这一模式测试。
 
-| 兼容协议 | 基础地址 | 常用鉴权方式 |
-| --- | --- | --- |
-| OpenAI | `https://coderplant.com/v1` | `Authorization: Bearer YOUR_API_KEY` |
-| Anthropic | `https://coderplant.com` | `x-api-key` 或 Bearer |
-| Gemini | `https://coderplant.com` | `x-goog-api-key` |
+## 30 秒快速开始
 
-请将示例中的 `YOUR_API_KEY` 和 `YOUR_MODEL_ID` 替换为自己的密钥与模型 ID。不要把真实 API Key 提交到 GitHub。
+要求 Node.js 20 或更高版本。
 
----
-
-## 测试 OpenAI 兼容接口
-
-```bash
-curl https://coderplant.com/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "YOUR_MODEL_ID",
-    "messages": [
-      {"role": "user", "content": "你好，请回复连接成功"}
-    ],
-    "stream": false
-  }'
-```
-
-如果响应 JSON 中包含 `choices` 和模型回复，说明 API 地址、密钥与模型配置基本正确。
-
----
-
-## Codex CLI 接入
-
-### 1. 安装 Codex CLI
-
-```bash
-npm install -g --ignore-scripts @openai/codex@latest
-codex --version
-```
-
-### 2. 配置 `config.toml`
-
-配置文件位置：
-
-- Windows：`%USERPROFILE%\.codex\config.toml`
-- macOS / Linux：`~/.codex/config.toml`
-
-```toml
-model_provider = "coderplant"
-model = "YOUR_MODEL_ID"
-model_reasoning_effort = "high"
-disable_response_storage = true
-preferred_auth_method = "apikey"
-
-[model_providers.coderplant]
-name = "CoderPlant"
-base_url = "https://coderplant.com/v1"
-wire_api = "responses"
-requires_openai_auth = true
-```
-
-### 3. 配置 `auth.json`
-
-文件位置：
-
-- Windows：`%USERPROFILE%\.codex\auth.json`
-- macOS / Linux：`~/.codex/auth.json`
-
-```json
-{
-  "OPENAI_API_KEY": "YOUR_API_KEY"
-}
-```
-
-完成后运行：
-
-```bash
-codex "你好"
-```
-
-> `auth.json` 包含敏感信息，禁止上传到 GitHub、网盘或公开聊天记录。
-
----
-
-## Claude Code 接入
-
-Claude Code 使用 Anthropic 兼容地址连接 CoderPlant。
-
-### Windows PowerShell
+### PowerShell
 
 ```powershell
-npm install -g @anthropic-ai/claude-code
-
-[Environment]::SetEnvironmentVariable(
-  "ANTHROPIC_BASE_URL", "https://coderplant.com", "User"
-)
-
-[Environment]::SetEnvironmentVariable(
-  "ANTHROPIC_AUTH_TOKEN", "YOUR_API_KEY", "User"
-)
+$env:OPENAI_API_KEY = "your-api-key"
+npx.cmd llm-api-doctor check `
+  --provider openai-compatible `
+  --base-url https://api.example.com/v1 `
+  --model MODEL_ID
 ```
 
 ### macOS / Linux
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-export ANTHROPIC_BASE_URL="https://coderplant.com"
-export ANTHROPIC_AUTH_TOKEN="YOUR_API_KEY"
-claude
+export OPENAI_API_KEY="your-api-key"
+npx llm-api-doctor check \
+  --provider openai-compatible \
+  --base-url https://api.example.com/v1 \
+  --model MODEL_ID
 ```
 
-设置持久化环境变量后，请关闭并重新打开终端，再运行 `claude`。
+Streaming 默认关闭。需要检查 SSE 时增加 `--stream`：
 
----
-
-## Gemini 兼容接口
-
-```bash
-curl "https://coderplant.com/v1beta/models/YOUR_MODEL_ID:generateContent" \
-  -H "x-goog-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "contents": [
-      {"parts": [{"text": "你好，请回复连接成功"}]}
-    ]
-  }'
+```powershell
+npx.cmd llm-api-doctor check `
+  --base-url https://api.example.com/v1 `
+  --model MODEL_ID `
+  --stream
 ```
 
-模型必须是控制台当前已启用、并支持 Gemini 兼容协议的模型。
+## 使用 CoderPlant 测试
 
----
+[CoderPlant 大模型中转站](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor) 是本项目关联的大模型 API 服务。你可以使用 LLM API Doctor 独立验证其接口兼容性、流式输出和延迟表现。
 
-## 套餐与倍率
+```powershell
+$env:OPENAI_API_KEY = "your-coderplant-api-key"
+npx.cmd llm-api-doctor check `
+  --provider openai-compatible `
+  --base-url https://coderplant.com `
+  --model MODEL_ID `
+  --stream
+```
 
-### 按量使用
+请将 `MODEL_ID` 替换为 CoderPlant 控制台中实际可用的模型名称。工具不会将你的 API Key 上传到项目服务器或写入诊断报告。
 
-| 线路 | 计费倍率 |
-| --- | ---: |
-| Plus | 0.2 倍率 |
-| Pro | 0.35 倍率 |
+**访问入口：** [https://coderplant.com](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
 
-### Plus 包月
+## 其他提供商示例
 
-| 套餐档位 | 文档标示价格 |
-| --- | ---: |
-| 标准 | ¥159 |
-| 加量 | ¥299 |
-| 高级 | ¥560 |
+### OpenAI Responses API
 
-### Pro 包月
+```powershell
+$env:OPENAI_API_KEY = "your-api-key"
+npx.cmd llm-api-doctor check --provider openai-responses --model MODEL_ID
+```
 
-| 套餐档位 | 文档标示价格 |
-| --- | ---: |
-| 标准 | ¥269 |
-| 加量 | ¥560 |
-| 高级 | ¥909 |
+### Anthropic Claude
 
-> 套餐额度、可用模型、倍率和价格可能调整，购买前请以官方店铺及控制台实时规则为准。
+```powershell
+$env:ANTHROPIC_API_KEY = "your-api-key"
+npx.cmd llm-api-doctor check --provider anthropic --model MODEL_ID
+```
 
----
+Anthropic API version 默认为 `2023-06-01`，可通过 `--api-version` 覆盖。
+
+### Google Gemini
+
+```powershell
+$env:GEMINI_API_KEY = "your-api-key"
+npx.cmd llm-api-doctor check --provider gemini --model MODEL_ID
+```
+
+### Azure OpenAI
+
+```powershell
+$env:AZURE_OPENAI_API_KEY = "your-api-key"
+npx.cmd llm-api-doctor check `
+  --provider azure-openai `
+  --base-url https://YOUR_RESOURCE.openai.azure.com `
+  --model YOUR_DEPLOYMENT_NAME `
+  --api-version 2024-10-21
+```
+
+## 检查内容
+
+| 检查层 | 诊断内容 |
+| --- | --- |
+| Endpoint | 按提供商规则规范化 URL，并验证真实请求路径 |
+| Authentication | Bearer、`x-api-key`、`x-goog-api-key` 或 Azure `api-key` |
+| HTTP | 状态码、Content-Type、超时、重定向和常见服务端错误 |
+| Response | 提供商响应结构、非空模型文本和可选 Token usage |
+| Streaming | SSE framing、事件结构、文本增量、完成事件、TTFT 和总耗时 |
+| Safety | 阻止跨域携带认证信息，并在最终报告中脱敏 API Key |
+
+## Windows 桌面版
+
+不习惯命令行时，可以使用 Electron + React 桌面客户端：
+
+- 图形化选择 Provider、Base URL、Model 和 API version
+- Streaming 默认关闭，需要时单独开启
+- 右侧显示 English / 中文诊断结果
+- 支持取消请求以及导出 JSON、Markdown 报告
+- 提供安装版和 Portable 单文件免安装版
+
+开发和打包命令见 [desktop/README.md](desktop/README.md)，本地生成文件位于 `desktop/release/`。
+
+## CLI 参数
+
+| 参数 | 说明 | 默认值 |
+| --- | --- | --- |
+| `--provider <provider>` | 上表中的提供商协议 | `openai-compatible` |
+| `--base-url <url>` | API Origin、Base URL 或完整 Endpoint | 提供商默认值或交互输入 |
+| `--model <id>` | 模型 ID 或 Azure Deployment Name | 交互输入 |
+| `--api-key-env <name>` | 保存 API Key 的环境变量名称 | 提供商默认变量 |
+| `--api-version <version>` | Anthropic 或 Azure API version | 提供商默认版本 |
+| `--timeout <seconds>` | 单次请求超时 | `30` |
+| `--stream` | 同时检查 SSE 流式输出 | 关闭 |
+| `--format <format>` | `terminal`、`json` 或 `markdown` | `terminal` |
+| `--output <path>` | 将报告写入文件 | stdout |
+| `--non-interactive` | 缺少配置时直接失败，不进行询问 | 关闭 |
+
+## 报告与 CI
+
+```powershell
+npx.cmd llm-api-doctor check `
+  --base-url https://api.example.com/v1 `
+  --model MODEL_ID `
+  --format json `
+  --output report.json `
+  --non-interactive
+```
+
+稳定的退出码便于集成自动化脚本：
+
+```text
+0  所有诊断完成且没有失败项
+1  存在一个或多个失败检查
+2  CLI 参数或配置无效
+3  未预期的内部错误
+```
+
+缺少可选 `usage` 等警告不会返回退出码 `1`。
 
 ## 常见问题
 
-### `401 API key is required / invalid`
+### 只能测试 OpenAI 模型吗？
 
-检查请求头中是否包含完整密钥，并确认密钥前后没有空格、换行或多余引号。仍无法使用时，可停用旧密钥并重新创建。
+不是。工具按 API 协议测试，不限制模型品牌。只要 DeepSeek、Claude、Gemini、Qwen、Mistral 或其他模型通过受支持协议提供服务，就可以测试。
 
-### `403` 没有模型权限
+### 支持大模型中转站吗？
 
-检查 API Key 的模型限制、账户套餐，以及目标模型当前是否在控制台中可用。
+支持。大多数中转站可选择 `openai-compatible`，填写中转站 Base URL 和模型 ID。若服务商提供原生 Anthropic、Gemini 或 Responses 协议，也可以选择对应 Provider。
 
-### `404` 端点不存在
+### 会上传或保存 API Key 吗？
 
-OpenAI 兼容客户端通常填写 `https://coderplant.com/v1`。检查是否误写成了 `/v1/v1`。
+不会。CLI 在本地读取环境变量，桌面端只在当前运行内存中使用 API Key。报告和持久化设置均不包含 API Key。
 
-### `429` 请求过多或额度不足
+### 为什么普通请求通过，但 Streaming 失败？
 
-降低并发请求数量，并检查余额、套餐额度和速率限制。不要持续进行高频重试。
+这通常表示中转层返回了文本，但 SSE `data:` framing、增量 JSON 结构或协议结束事件不完整。工具会将 HTTP、Content-Type、SSE 协议、文本和结束事件分别显示。
 
-### 安装后提示命令不存在
+## 安全与范围
 
-重新打开终端，确认 Node.js 全局安装目录已加入 `PATH`，再运行对应工具的 `--version` 命令。
+- 跨 Origin 重定向会在转发认证信息前被拒绝
+- 远程服务应使用 HTTPS，本地 Mock 或私有开发环境可使用 HTTP
+- 请求采用很小的输出 Token 限制，但仍可能产生少量模型费用
+- 当前不测试模型列表、工具调用、Embedding、图像、音频和 AWS Bedrock 原生协议
+- Ollama 可通过 OpenAI-compatible Endpoint 测试，不支持其原生 `/api/*` 协议
 
-### 请求长时间没有返回
+更多信息见 [SECURITY.md](SECURITY.md)。
 
-先使用短提示词和非流式请求测试。长上下文或高推理强度任务可能需要更长的客户端超时时间。
+## 本地开发
 
----
-
-## 安全建议
-
-- 不同设备、项目和人员应使用不同的 API Key；
-- 优先通过环境变量或系统密钥存储提供密钥；
-- 为 API Key 设置合理的额度、有效期和模型权限；
-- 不要将 API Key 写入公开代码、截图、日志或聊天记录；
-- 发现异常用量后，立即停用旧密钥并创建新密钥；
-- 建议将 `auth.json`、`.env` 等敏感配置加入 `.gitignore`。
-
-示例 `.gitignore`：
-
-```gitignore
-.env
-.env.*
-auth.json
-.codex/auth.json
+```powershell
+npm.cmd install
+npm.cmd run build
+npm.cmd test
+npm.cmd run test:coverage
 ```
 
+项目测试使用本地回环 Mock Server，不会调用付费 API。CI 在 Node.js 20 和 22 上运行。
+
+## 参与贡献
+
+欢迎提交 Issue 和 Pull Request，尤其是：
+
+- 新提供商协议适配器和真实兼容性案例
+- 不同中转网关的 SSE 边界问题
+- 更准确的中英文错误说明
+- macOS / Linux 桌面打包支持
+
+提交问题时请删除真实 API Key、Authorization Header 和完整提供商响应。
+
+## License
+
+MIT，详见 [LICENSE](LICENSE)。
+
 ---
 
-## 使用前说明
-
-- 本文仅整理 CoderPlant 官方公开信息，不代替控制台中的实时说明；
-- API 中转服务的可用模型、线路、倍率和价格可能随运营情况调整；
-- 开发前建议先用短请求测试接口，再逐步增加上下文长度与推理强度；
-- 重要项目应准备超时、限流、重试和备用服务策略；
-- 账户、兑换、套餐及售后问题请通过 CoderPlant 官方渠道处理。
-
----
-
-## 资料来源
-
-- [CoderPlant 官方使用文档](https://coderplant.com/docs/)
-- [CoderPlant 官方控制台](https://coderplant.com/dashboard)
-
+LLM API Doctor is maintained alongside [CoderPlant](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor), an LLM API relay service. Use the doctor to verify compatibility before integrating any provider into production.

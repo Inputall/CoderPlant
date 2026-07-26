@@ -1,0 +1,52 @@
+{
+  "name": "llm-api-doctor",
+  "version": "0.1.0",
+  "description": "Diagnose OpenAI-compatible Chat Completions APIs from the command line.",
+  "type": "module",
+  "bin": {
+    "llm-api-doctor": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "exports": "./dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "node dist/cli.js check",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm run test:coverage"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "keywords": [
+    "openai",
+    "api",
+    "diagnostics",
+    "cli",
+    "sse"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "ora": "^8.2.0",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/prompts": "^2.4.9",
+    "@vitest/coverage-v8": "^3.2.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
