@@ -5,6 +5,7 @@
 [![npm](https://img.shields.io/npm/v/llm-api-doctor)](https://www.npmjs.com/package/llm-api-doctor)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
+[![Windows Release](https://img.shields.io/badge/Windows-v0.1.0-0078d4?logo=windows11&logoColor=white)](https://github.com/Inputall/llm-api-doctor/releases/latest)
 [![CoderPlant](https://img.shields.io/badge/LLM_API-CoderPlant-07865c)](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
 
 LLM API Doctor 是一个开源、轻量的大模型 API 测试工具，提供 CLI 和 Windows 桌面版。它会发送一条低 Token 的真实请求，帮助你快速定位 `Base URL`、API Key、模型权限、响应结构、流式协议和网关延迟问题。
@@ -152,6 +153,14 @@ npx.cmd llm-api-doctor check `
 ## Windows 桌面版
 
 不习惯命令行时，可以使用 Electron + React 桌面客户端：
+
+| 版本 | 下载 | 适用场景 |
+| --- | --- | --- |
+| Windows 安装版 | [下载 Setup.exe](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/LLM-API-Doctor-0.1.0-Setup.exe) | 创建桌面快捷方式并安装到系统 |
+| Windows 免安装版 | [下载 Portable.exe](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/LLM-API-Doctor-0.1.0-Portable.exe) | 下载后直接运行，不写入安装信息 |
+| SHA256 校验 | [下载 SHA256SUMS.txt](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/SHA256SUMS.txt) | 验证下载文件完整性 |
+
+也可以前往 [GitHub Releases](https://github.com/Inputall/llm-api-doctor/releases/latest) 查看版本说明和全部附件。当前 Windows 文件尚未进行代码签名，首次运行时可能显示“未知发布者”提示。
 
 - 图形化选择 Provider、Base URL、Model 和 API version
 - Streaming 默认关闭，需要时单独开启
