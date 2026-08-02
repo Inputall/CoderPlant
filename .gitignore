@@ -1,9 +1,10 @@
 node_modules/
 dist/
 coverage/
-desktop/out/
-desktop/release/
-desktop/.cache/
+legacy-typescript/desktop/out/
+legacy-typescript/desktop/release/
+legacy-typescript/desktop/.cache/
+legacy-typescript/LLM_API_DOCTOR_V1_CODING_PLAN.md
 rust/target/
 rust/release/
 

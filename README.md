@@ -87,9 +87,10 @@ Download the latest native desktop build from [GitHub Releases](https://github.c
 
 ## Legacy Node.js Edition
 
-The original TypeScript/Node.js implementation remains in the repository during the migration so existing npm users and tests continue to work. It is not required for the Rust build. To run it:
+The original TypeScript/Node.js and Electron implementation is archived in [`legacy-typescript/`](legacy-typescript/). It remains available for compatibility and historical reference, but is not required for the Rust build. To run it:
 
 ```powershell
+cd legacy-typescript
 npm.cmd install
 npm.cmd run build
 npm.cmd test
