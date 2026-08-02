@@ -1,266 +1,109 @@
 # LLM API Doctor
 
-> 一条命令诊断大模型 API：检查地址、认证、响应格式、SSE 流式输出与首 Token 延迟。
+> A lightweight Rust CLI and native Windows desktop tool for diagnosing LLM API compatibility, authentication, response schemas, streaming, and latency.
 
-[![npm](https://img.shields.io/npm/v/llm-api-doctor)](https://www.npmjs.com/package/llm-api-doctor)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![License](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
-[![Windows Release](https://img.shields.io/badge/Windows-v0.1.0-0078d4?logo=windows11&logoColor=white)](https://github.com/Inputall/llm-api-doctor/releases/latest)
-[![CoderPlant](https://img.shields.io/badge/LLM_API-CoderPlant-07865c)](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
+[![Rust](https://img.shields.io/badge/Rust-1.82%2B-orange?logo=rust)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Windows Release](https://img.shields.io/badge/Windows-release-0078d4?logo=windows11)](https://github.com/Inputall/llm-api-doctor/releases/latest)
+[![CoderPlant](https://img.shields.io/badge/LLM%20gateway-CoderPlant-07865c)](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
 
-LLM API Doctor 是一个开源、轻量的大模型 API 测试工具，提供 CLI 和 Windows 桌面版。它会发送一条低 Token 的真实请求，帮助你快速定位 `Base URL`、API Key、模型权限、响应结构、流式协议和网关延迟问题。
+LLM API Doctor sends a minimal real request to the endpoint you specify and reports actionable diagnostics. It is designed for model gateways, OpenAI-compatible services, self-hosted inference servers, and direct provider APIs.
 
-支持 **OpenAI Chat Completions、OpenAI Responses、Anthropic Claude、Google Gemini、Azure OpenAI**，以及 DeepSeek、OpenRouter、Groq、Mistral、通义千问、Moonshot、SiliconFlow、vLLM、LM Studio、Ollama 等提供的 OpenAI 兼容接口。
+LLM API Doctor 会向你指定的接口发送低 Token 的真实请求，并检查认证、响应结构、SSE 流式协议和延迟。项目当前以 Rust 原生实现为主，提供轻量 CLI 和 Windows 原生桌面版。
 
-如果这个项目帮你节省了排查时间，欢迎点一个 **Star**。这会帮助更多开发者找到它。
+## Supported Providers
 
-**English:** A local CLI and Windows desktop app for testing OpenAI, Anthropic Claude, Google Gemini, Azure OpenAI, and OpenAI-compatible LLM APIs. Diagnose authentication, response schemas, SSE streaming, TTFT, and gateway latency without exposing API keys in reports.
+| Provider | Protocol | Default key variable |
+| --- | --- | --- |
+| OpenAI-compatible | Chat Completions (`/v1/chat/completions`) | `OPENAI_API_KEY` |
+| OpenAI Responses | Responses API | `OPENAI_API_KEY` |
+| Anthropic | Messages API | `ANTHROPIC_API_KEY` |
+| Google Gemini | `generateContent` / SSE | `GEMINI_API_KEY` |
+| Azure OpenAI | Chat Completions with deployment URL | `AZURE_OPENAI_API_KEY` |
 
-## 为什么需要它
+OpenAI-compatible mode is protocol-based, not brand-limited. It can test compatible endpoints from CoderPlant, DeepSeek, OpenRouter, Groq, Mistral, Qwen, Moonshot, SiliconFlow, Ollama, LM Studio, and other gateways.
 
-调用大模型失败时，常见错误往往非常相似：
+## Rust Edition
 
-- `401`：API Key 错误，还是认证 Header 不兼容？
-- `404`：Base URL 错误，还是重复拼接了 `/v1`？
-- HTTP `200`：为什么 SDK 仍然无法读取返回内容？
-- 普通请求成功：为什么 `stream=true` 会中断或缺少结束事件？
-- 中转接口可用：首 Token 到底慢在网关还是模型上游？
+The Rust implementation lives in [`rust/`](rust/):
 
-LLM API Doctor 将一次调用拆成独立检查项，并给出可读的错误说明和修复建议。它使用原生 HTTP 请求，而不是依赖某一家 SDK，因此测试的是应用实际调用的协议层。
+- `crates/core`: provider adapters, endpoint normalization, HTTP checks, SSE parsing, timing, redaction, and reports
+- `crates/cli`: native `llm-api-doctor` command
+- `crates/desktop`: native `egui` Windows desktop application
 
-## 功能亮点
+Streaming is disabled by default. API keys are held only for the active request and are not written to reports.
 
-- 五种提供商协议，模型 ID 自由输入，不维护模型白名单
-- 自动规范化 API 地址，识别常见 `/v1` 和完整 Endpoint 写法
-- 检查 HTTP 状态、Content-Type、JSON Schema 和模型文本
-- 可选 SSE 流式测试，记录响应头延迟、TTFT 和总耗时
-- 终端、JSON、Markdown 三种报告，适合本地排查和 CI
-- Windows 桌面版提供中英文结果、运行取消和报告导出
-- API Key 不写入报告，也不保存在桌面端设置中
-- 所有自动化测试使用本地 Mock Server，不消耗真实模型额度
+### Build on Windows
 
-## 支持的协议
+Install Rust with the MSVC toolchain and Visual Studio 2022 Build Tools with the C++ workload. Then use **Developer PowerShell for VS 2022**:
 
-模型名称没有白名单限制。请选择目标接口实际实现的协议，再填写真实模型 ID；Azure OpenAI 中填写 Deployment Name。
+```powershell
+cd D:\AI-workspace\Codex\rust
+cargo fmt --all -- --check
+cargo test --workspace
+cargo build --release -p llm-api-doctor
+cargo build --release -p llm-api-doctor-desktop
+```
 
-| 提供商协议 | `--provider` | 默认 Base URL | 默认 Key 环境变量 |
-| --- | --- | --- | --- |
-| OpenAI-compatible Chat Completions | `openai-compatible` | 需要填写 | `OPENAI_API_KEY` |
-| OpenAI Responses API | `openai-responses` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
-| Anthropic Messages | `anthropic` | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| Google Gemini | `gemini` | `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
-| Azure OpenAI Chat Completions | `azure-openai` | 需要填写 | `AZURE_OPENAI_API_KEY` |
+Output files are written to `rust/target/release/`.
 
-> OpenAI-compatible 表示接口遵循 Chat Completions 协议，并不代表它只能测试 OpenAI 模型。大多数大模型中转站和本地推理服务都可以通过这一模式测试。
-
-## 30 秒快速开始
-
-要求 Node.js 20 或更高版本。
-
-### PowerShell
+### Run the Rust CLI
 
 ```powershell
 $env:OPENAI_API_KEY = "your-api-key"
-npx.cmd llm-api-doctor check `
+.\target\release\llm-api-doctor.exe `
   --provider openai-compatible `
   --base-url https://api.example.com/v1 `
   --model MODEL_ID
 ```
 
-### macOS / Linux
-
-```bash
-export OPENAI_API_KEY="your-api-key"
-npx llm-api-doctor check \
-  --provider openai-compatible \
-  --base-url https://api.example.com/v1 \
-  --model MODEL_ID
-```
-
-Streaming 默认关闭。需要检查 SSE 时增加 `--stream`：
+Add `--stream` when you want to test SSE behavior. Reports can be written as JSON or Markdown:
 
 ```powershell
-npx.cmd llm-api-doctor check `
-  --base-url https://api.example.com/v1 `
-  --model MODEL_ID `
-  --stream
-```
-
-## 使用 CoderPlant 测试
-
-[CoderPlant 大模型中转站](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor) 是本项目关联的大模型 API 服务。你可以使用 LLM API Doctor 独立验证其接口兼容性、流式输出和延迟表现。
-
-```powershell
-$env:OPENAI_API_KEY = "your-coderplant-api-key"
-npx.cmd llm-api-doctor check `
-  --provider openai-compatible `
-  --base-url https://coderplant.com `
-  --model MODEL_ID `
-  --stream
-```
-
-请将 `MODEL_ID` 替换为 CoderPlant 控制台中实际可用的模型名称。工具不会将你的 API Key 上传到项目服务器或写入诊断报告。
-
-**访问入口：** [https://coderplant.com](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor)
-
-## 其他提供商示例
-
-### OpenAI Responses API
-
-```powershell
-$env:OPENAI_API_KEY = "your-api-key"
-npx.cmd llm-api-doctor check --provider openai-responses --model MODEL_ID
-```
-
-### Anthropic Claude
-
-```powershell
-$env:ANTHROPIC_API_KEY = "your-api-key"
-npx.cmd llm-api-doctor check --provider anthropic --model MODEL_ID
-```
-
-Anthropic API version 默认为 `2023-06-01`，可通过 `--api-version` 覆盖。
-
-### Google Gemini
-
-```powershell
-$env:GEMINI_API_KEY = "your-api-key"
-npx.cmd llm-api-doctor check --provider gemini --model MODEL_ID
-```
-
-### Azure OpenAI
-
-```powershell
-$env:AZURE_OPENAI_API_KEY = "your-api-key"
-npx.cmd llm-api-doctor check `
-  --provider azure-openai `
-  --base-url https://YOUR_RESOURCE.openai.azure.com `
-  --model YOUR_DEPLOYMENT_NAME `
-  --api-version 2024-10-21
-```
-
-## 检查内容
-
-| 检查层 | 诊断内容 |
-| --- | --- |
-| Endpoint | 按提供商规则规范化 URL，并验证真实请求路径 |
-| Authentication | Bearer、`x-api-key`、`x-goog-api-key` 或 Azure `api-key` |
-| HTTP | 状态码、Content-Type、超时、重定向和常见服务端错误 |
-| Response | 提供商响应结构、非空模型文本和可选 Token usage |
-| Streaming | SSE framing、事件结构、文本增量、完成事件、TTFT 和总耗时 |
-| Safety | 阻止跨域携带认证信息，并在最终报告中脱敏 API Key |
-
-## Windows 桌面版
-
-不习惯命令行时，可以使用 Electron + React 桌面客户端：
-
-| 版本 | 下载 | 适用场景 |
-| --- | --- | --- |
-| Windows 安装版 | [下载 Setup.exe](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/LLM-API-Doctor-0.1.0-Setup.exe) | 创建桌面快捷方式并安装到系统 |
-| Windows 免安装版 | [下载 Portable.exe](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/LLM-API-Doctor-0.1.0-Portable.exe) | 下载后直接运行，不写入安装信息 |
-| SHA256 校验 | [下载 SHA256SUMS.txt](https://github.com/Inputall/llm-api-doctor/releases/download/desktop-v0.1.0/SHA256SUMS.txt) | 验证下载文件完整性 |
-
-也可以前往 [GitHub Releases](https://github.com/Inputall/llm-api-doctor/releases/latest) 查看版本说明和全部附件。当前 Windows 文件尚未进行代码签名，首次运行时可能显示“未知发布者”提示。
-
-- 图形化选择 Provider、Base URL、Model 和 API version
-- Streaming 默认关闭，需要时单独开启
-- 右侧显示 English / 中文诊断结果
-- 支持取消请求以及导出 JSON、Markdown 报告
-- 提供安装版和 Portable 单文件免安装版
-
-开发和打包命令见 [desktop/README.md](desktop/README.md)，本地生成文件位于 `desktop/release/`。
-
-## CLI 参数
-
-| 参数 | 说明 | 默认值 |
-| --- | --- | --- |
-| `--provider <provider>` | 上表中的提供商协议 | `openai-compatible` |
-| `--base-url <url>` | API Origin、Base URL 或完整 Endpoint | 提供商默认值或交互输入 |
-| `--model <id>` | 模型 ID 或 Azure Deployment Name | 交互输入 |
-| `--api-key-env <name>` | 保存 API Key 的环境变量名称 | 提供商默认变量 |
-| `--api-version <version>` | Anthropic 或 Azure API version | 提供商默认版本 |
-| `--timeout <seconds>` | 单次请求超时 | `30` |
-| `--stream` | 同时检查 SSE 流式输出 | 关闭 |
-| `--format <format>` | `terminal`、`json` 或 `markdown` | `terminal` |
-| `--output <path>` | 将报告写入文件 | stdout |
-| `--non-interactive` | 缺少配置时直接失败，不进行询问 | 关闭 |
-
-## 报告与 CI
-
-```powershell
-npx.cmd llm-api-doctor check `
+.\target\release\llm-api-doctor.exe `
   --base-url https://api.example.com/v1 `
   --model MODEL_ID `
   --format json `
-  --output report.json `
-  --non-interactive
+  --output report.json
 ```
 
-稳定的退出码便于集成自动化脚本：
+## CoderPlant Example
 
-```text
-0  所有诊断完成且没有失败项
-1  存在一个或多个失败检查
-2  CLI 参数或配置无效
-3  未预期的内部错误
+[CoderPlant](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor) is an LLM gateway that can be checked independently with this tool:
+
+```powershell
+$env:OPENAI_API_KEY = "your-coderplant-api-key"
+.\target\release\llm-api-doctor.exe `
+  --provider openai-compatible `
+  --base-url https://coderplant.com `
+  --model MODEL_ID
 ```
 
-缺少可选 `usage` 等警告不会返回退出码 `1`。
+Replace `MODEL_ID` with a model enabled in your CoderPlant account. Use `--stream` to verify streaming separately.
 
-## 常见问题
+## Windows Desktop Release
 
-### 只能测试 OpenAI 模型吗？
+Download the latest native desktop build from [GitHub Releases](https://github.com/Inputall/llm-api-doctor/releases/latest). The desktop app provides bilingual English/Chinese results and keeps streaming disabled until you enable it.
 
-不是。工具按 API 协议测试，不限制模型品牌。只要 DeepSeek、Claude、Gemini、Qwen、Mistral 或其他模型通过受支持协议提供服务，就可以测试。
+## Legacy Node.js Edition
 
-### 支持大模型中转站吗？
-
-支持。大多数中转站可选择 `openai-compatible`，填写中转站 Base URL 和模型 ID。若服务商提供原生 Anthropic、Gemini 或 Responses 协议，也可以选择对应 Provider。
-
-### 会上传或保存 API Key 吗？
-
-不会。CLI 在本地读取环境变量，桌面端只在当前运行内存中使用 API Key。报告和持久化设置均不包含 API Key。
-
-### 为什么普通请求通过，但 Streaming 失败？
-
-这通常表示中转层返回了文本，但 SSE `data:` framing、增量 JSON 结构或协议结束事件不完整。工具会将 HTTP、Content-Type、SSE 协议、文本和结束事件分别显示。
-
-## 安全与范围
-
-- 跨 Origin 重定向会在转发认证信息前被拒绝
-- 远程服务应使用 HTTPS，本地 Mock 或私有开发环境可使用 HTTP
-- 请求采用很小的输出 Token 限制，但仍可能产生少量模型费用
-- 当前不测试模型列表、工具调用、Embedding、图像、音频和 AWS Bedrock 原生协议
-- Ollama 可通过 OpenAI-compatible Endpoint 测试，不支持其原生 `/api/*` 协议
-
-更多信息见 [SECURITY.md](SECURITY.md)。
-
-## 本地开发
+The original TypeScript/Node.js implementation remains in the repository during the migration so existing npm users and tests continue to work. It is not required for the Rust build. To run it:
 
 ```powershell
 npm.cmd install
 npm.cmd run build
 npm.cmd test
-npm.cmd run test:coverage
 ```
 
-项目测试使用本地回环 Mock Server，不会调用付费 API。CI 在 Node.js 20 和 22 上运行。
+## Security
 
-## 参与贡献
+- Use HTTPS for remote endpoints.
+- API keys are never included in JSON or Markdown reports.
+- Requests use a minimal prompt and low output limits, but provider usage charges may still apply.
+- Do not paste API keys into issue reports or public logs.
 
-欢迎提交 Issue 和 Pull Request，尤其是：
-
-- 新提供商协议适配器和真实兼容性案例
-- 不同中转网关的 SSE 边界问题
-- 更准确的中英文错误说明
-- macOS / Linux 桌面打包支持
-
-提交问题时请删除真实 API Key、Authorization Header 和完整提供商响应。
+See [`SECURITY.md`](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-MIT，详见 [LICENSE](LICENSE)。
-
----
-
-LLM API Doctor is maintained alongside [CoderPlant](https://coderplant.com/?utm_source=github&utm_medium=readme&utm_campaign=llm-api-doctor), an LLM API relay service. Use the doctor to verify compatibility before integrating any provider into production.
+MIT. See [`LICENSE`](LICENSE).

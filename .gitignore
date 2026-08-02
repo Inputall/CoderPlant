@@ -4,6 +4,8 @@ coverage/
 desktop/out/
 desktop/release/
 desktop/.cache/
+rust/target/
+rust/release/
 
 .env
 .env.*
